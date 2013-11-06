@@ -9,8 +9,8 @@ which provides support for AES-NI.  This fork also adds support for AES 192/256 
 When building this code, the build host requires the OpenSSL 1.0.1 devel package to be installed.  Other than this
 new dependency, the build procedure has not changed:
 
-./configure
-make dep
+./configure<br>
+make dep<br>
 make
 
 

@@ -47,7 +47,7 @@ cryptobj =  $(ciphers) $(hashes) $(math) $(stat) $(kernel) $(replay)
 
 export SRTP_SRCDIR = ../../srtp
 export SRTP_OBJS = $(cryptobj) $(srtpobj)
-export SRTP_CFLAGS = -DHAVE_CONFIG_H $(_CFLAGS)
+export SRTP_CFLAGS = -DOPENSSL -DHAVE_CONFIG_H $(_CFLAGS)
 
 
 export CC_OUT CC AR RANLIB HOST_MV HOST_RM HOST_RMDIR HOST_MKDIR OBJEXT LD LDOUT 

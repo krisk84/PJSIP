@@ -54,6 +54,9 @@
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #undef HAVE_NETINET_IN_H
 
+/* Define to 1 if you have the `sigaction' function. */
+#undef HAVE_SIGACTION
+
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
 
@@ -137,6 +140,9 @@
 
 /* Define to use GDOI. */
 #undef SRTP_GDOI
+
+/* Define to use OpenSSL crypto. */
+#undef OPENSSL
 
 /* Define to compile for kernel contexts. */
 #undef SRTP_KERNEL

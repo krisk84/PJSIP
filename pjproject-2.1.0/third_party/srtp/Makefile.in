@@ -9,9 +9,12 @@
 # test		builds test applications
 # libcrypt.a	static library implementing crypto engine
 # libsrtp.a	static library implementing srtp
+# libsrtp.so	shared library implementing srtp
 # clean		removes objects, libs, and executables
 # distribution  cleans and builds a .tgz
 # tags          builds etags file from all .c and .h files
+
+USE_OPENSSL = @USE_OPENSSL@
 
 .PHONY: all test build_table_apps
 
@@ -26,7 +29,10 @@ runtest: build_table_apps test
 	test/roc_driver$(EXE) -v >/dev/null
 	test/replay_driver$(EXE) -v >/dev/null
 	test/dtls_srtp_driver$(EXE) >/dev/null
-	cd test; ./rtpw_test.sh >/dev/null	
+	cd test; $(abspath $(srcdir))/test/rtpw_test.sh >/dev/null	
+ifeq (1, $(USE_OPENSSL))
+	cd test; $(abspath $(srcdir))/test/rtpw_test_gcm.sh >/dev/null	
+endif
 	@echo "libsrtp test applications passed."
 	$(MAKE) -C crypto runtest
 
@@ -48,11 +54,16 @@ INSTALL	= @INSTALL@
 # EXE defines the suffix on executables - it's .exe for Windows, and
 # null on linux, bsd, and OS X and other OSes.
 EXE	= @EXE@
+
 # gdoi is the group domain of interpretation for isakmp, a group key
 # management system which can provide keys for srtp
 gdoi	= @GDOI_OBJS@
+
 # Random source.
 RNG_OBJS = @RNG_OBJS@
+HMAC_OBJS = @HMAC_OBJS@
+RNG_EXTRA_OBJS = @RNG_EXTRA_OBJS@
+AES_ICM_OBJS = @AES_ICM_OBJS@
 
 srcdir = @srcdir@
 top_srcdir = @top_srcdir@
@@ -75,11 +86,10 @@ libdir = @libdir@
 
 # libcrypt.a (the crypto engine) 
 ciphers = crypto/cipher/cipher.o crypto/cipher/null_cipher.o      \
-          crypto/cipher/aes.o crypto/cipher/aes_icm.o             \
-          crypto/cipher/aes_cbc.o
+          $(AES_ICM_OBJS)     
 
-hashes  = crypto/hash/null_auth.o crypto/hash/sha1.o \
-          crypto/hash/hmac.o crypto/hash/auth.o # crypto/hash/tmmhv2.o 
+hashes  = crypto/hash/null_auth.o  crypto/hash/auth.o            \
+	  $(HMAC_OBJS)
 
 replay  = crypto/replay/rdb.o crypto/replay/rdbx.o               \
           crypto/replay/ut_sim.o 
@@ -88,7 +98,7 @@ math    = crypto/math/datatypes.o crypto/math/stat.o
 
 ust     = crypto/ust/ust.o 
 
-rng     = crypto/rng/$(RNG_OBJS) crypto/rng/prng.o crypto/rng/ctr_prng.o
+rng     = crypto/rng/$(RNG_OBJS) $(RNG_EXTRA_OBJS) 
 
 err     = crypto/kernel/err.o
 
@@ -99,11 +109,15 @@ cryptobj =  $(ciphers) $(hashes) $(math) $(stat) $(kernel) $(replay)
 
 # libsrtp.a (implements srtp processing)
 
-srtpobj = srtp/srtp.o 
+srtpobj = srtp/srtp.o srtp/ekt.o
 
 libsrtp.a: $(srtpobj) $(cryptobj) $(gdoi)
 	ar cr libsrtp.a $^
 	$(RANLIB) libsrtp.a
+
+libsrtp.so: $(srtpobj) $(cryptobj) $(gdoi) 
+	$(CC) -shared -Wl,-soname,libsrtp.so $(LDFLAGS) \
+	    -o libsrtp.so $^
 
 # libcryptomath.a contains general-purpose routines that are used to
 # generate tables and verify cryptoalgorithm implementations - this
@@ -117,8 +131,11 @@ libcryptomath.a: $(cryptomath)
 
 
 # test applications 
+ifneq (1, $(USE_OPENSSL))
+AES_CALC = crypto/test/aes_calc$(EXE)
+endif
 
-crypto_testapp = crypto/test/aes_calc$(EXE) crypto/test/cipher_driver$(EXE) \
+crypto_testapp = $(AES_CALC) crypto/test/cipher_driver$(EXE) \
 	crypto/test/datatypes_driver$(EXE) crypto/test/kernel_driver$(EXE) \
 	crypto/test/rand_gen$(EXE) crypto/test/sha1_driver$(EXE) \
 	crypto/test/stat_driver$(EXE)
@@ -186,25 +203,29 @@ tags:
 libsrtpdoc:
 	$(MAKE) -C doc
 
-.PHONY: clean superclean install
+.PHONY: clean superclean distclean install
 
 install:
-	@if [ -d $(DESTDIR)$(includedir)/srtp ]; then \
+	@if [ -r $(DESTDIR)$(includedir)/srtp/srtp.h ]; then \
 	   echo "you should run 'make uninstall' first"; exit 1;  \
 	fi
 	$(INSTALL) -d $(DESTDIR)$(includedir)/srtp
 	$(INSTALL) -d $(DESTDIR)$(libdir)
-	cp include/*.h $(DESTDIR)$(includedir)/srtp  
-	cp crypto/include/*.h $(DESTDIR)$(includedir)/srtp
+	cp $(srcdir)/include/*.h $(DESTDIR)$(includedir)/srtp  
+	cp $(srcdir)/crypto/include/*.h $(DESTDIR)$(includedir)/srtp
+	if [ "$(srcdir)" != "." ]; then cp crypto/include/*.h $(DESTDIR)$(includedir)/srtp; fi
 	if [ -f libsrtp.a ]; then cp libsrtp.a $(DESTDIR)$(libdir)/; fi
+	if [ -f libsrtp.so ]; then cp libsrtp.so $(DESTDIR)$(libdir)/; fi
 
 uninstall:
-	rm -rf $(DESTDIR)$(includedir)/srtp
-	rm -rf $(DESTDIR)$(libdir)/libsrtp.a
+	rm -f $(DESTDIR)$(includedir)/srtp/*.h
+	rm -f $(DESTDIR)$(libdir)/libsrtp.a
+	rm -f $(DESTDIR)$(libdir)/libsrtp.so
+	-rmdir $(DESTDIR)$(includedir)/srtp
 
 clean:
 	rm -rf $(cryptobj) $(srtpobj) $(cryptomath) TAGS \
-        libcryptomath.a libsrtp.a core *.core test/core
+        libcryptomath.a libsrtp.a libsrtp.so core *.core test/core
 	for a in * */* */*/*; do			\
               if [ -f "$$a~" ] ; then rm -f $$a~; fi;	\
         done;
@@ -217,16 +238,19 @@ clean:
 
 superclean: clean
 	rm -rf crypto/include/config.h config.log config.cache config.status \
-               Makefile .gdb_history test/.gdb_history .DS_Store
+               Makefile crypto/Makefile doc/Makefile \
+               .gdb_history test/.gdb_history .DS_Store
 	rm -rf autom4te.cache
 
-distname = srtp-$(shell cat VERSION)
+distclean: superclean
+
+distname = libsrtp-$(shell cat VERSION)
 
 distribution: runtest superclean 
 	if ! [ -f VERSION ]; then exit 1; fi
 	if [ -f ../$(distname).tgz ]; then               \
            mv ../$(distname).tgz ../$(distname).tgz.bak; \
         fi
-	cd ..; tar cvzf $(distname).tgz srtp
+	cd ..; tar cvzf $(distname).tgz libsrtp
 
 # EOF

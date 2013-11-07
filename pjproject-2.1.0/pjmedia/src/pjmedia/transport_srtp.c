@@ -72,11 +72,11 @@ static crypto_suite crypto_suites[] = {
     {"NULL", NULL_CIPHER, 0, NULL_AUTH, 0, 0, 0, sec_serv_none},
 
     /* cipher AES_GCM, NULL auth, auth tag len = 8 octets */
-    {"AES_GCM_256_8", AES_256_GCM, 46, NULL_AUTH, 0, 8, 8, 
+    {"AEAD_AES_GCM_256_8", AES_256_GCM, 46, NULL_AUTH, 0, 8, 8, 
 	sec_serv_conf_and_auth},
 
     /* cipher AES_GCM, NULL auth, auth tag len = 8 octets */
-    {"AES_GCM_128_8", AES_128_GCM, 30, NULL_AUTH, 0, 8, 8, 
+    {"AEAD_AES_GCM_128_8", AES_128_GCM, 30, NULL_AUTH, 0, 8, 8, 
 	sec_serv_conf_and_auth},
 
      /* cipher AES_CM, auth HMAC_SHA1, auth tag len = 10 octets */
